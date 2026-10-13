@@ -41,7 +41,7 @@ It can fail when:
    git branch -M main
    git remote add origin https://github.com/YOUR-NAME/YOUR-REPO.git
    git push -u origin main
-   ```
+   ```1
 2. Go to render.com, sign in with GitHub, then **New > Blueprint**, pick your repository.
    Render reads `render.yaml`, asks you to type an `ADMIN_PASSWORD` (choose a long one), then deploys.
    (Without the Blueprint: New > Web Service, Runtime **Node**, Build Command `echo ok`,
