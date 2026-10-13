@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#2b1a0f">
+<title>Duel - Phone</title>
+<link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#2b1a0f; --paper:#f3e2bd; --rust:#b5471f; --gold:#e8b13a; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-select:none; touch-action:manipulation; }
+  html, body { margin:0; height:100%; background:var(--ink); color:var(--paper); font-family:Georgia,'Times New Roman',serif; overflow:hidden; overscroll-behavior:none; }
+  #stage { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:24px; gap:14px; transition:background .12s; }
+  .big { font-family:'Rye',Georgia,serif; font-weight:400; margin:0; line-height:1.05; font-size:clamp(40px,15vw,88px); }
+  #emoji { font-size:clamp(64px,22vw,120px); line-height:1; }
+  #sub { font-size:clamp(18px,5vw,26px); margin:0; max-width:22em; }
+  #detail { font-size:clamp(16px,4.5vw,22px); margin:0; opacity:.85; min-height:1.4em; }
+  .btn { margin-top:10px; font-family:'Rye',Georgia,serif; font-size:clamp(22px,7vw,34px); padding:16px 34px; border-radius:14px; border:3px solid var(--ink); background:var(--gold); color:var(--ink); box-shadow:0 6px 0 #8a5d10; }
+  .btn:active { transform:translateY(4px); box-shadow:0 2px 0 #8a5d10; }
+  .btn[hidden] { display:none; }
+  #nameInput { font-size:22px; padding:12px; border-radius:10px; border:3px solid #2b1a0f; text-align:center; width:min(80vw,320px); -webkit-user-select:text; user-select:text; }
+  #nameInput[hidden], #codeInput[hidden], #codeLink[hidden], #privacy[hidden] { display:none; }
+  #codeInput { font-size:22px; padding:10px; border-radius:10px; border:3px solid #2b1a0f; text-align:center; width:120px; letter-spacing:6px; text-transform:uppercase; -webkit-user-select:text; user-select:text; }
+  #codeLink { color:#f3e2bd; opacity:.8; font-size:15px; }
+  #privacy { font-size:12px; opacity:.6; max-width:26em; margin:6px 0 0; }
+  #gear { position:absolute; top:max(12px,env(safe-area-inset-top)); right:14px; background:none; border:none; color:var(--paper); font-size:28px; opacity:.7; padding:8px; }
+
+  .s-join, .s-lobby, .s-over, .s-conn, .s-full { background:radial-gradient(circle at 50% 30%, #4a2d18, var(--ink)); }
+  .s-steady { background:#1b1209; animation:pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { background:#2e1c0c; } }
+  .s-draw { background:#e0301e; color:#fff; }
+  .s-draw .big { font-size:clamp(64px,26vw,150px); animation:shake .12s linear infinite; }
+  @keyframes shake { 25% { transform:translate(4px,-3px) rotate(-1deg); } 75% { transform:translate(-4px,3px) rotate(1deg); } }
+  .s-win { background:radial-gradient(circle at 50% 30%, #6b7d1f, #263008); }
+  .s-lose { background:radial-gradient(circle at 50% 30%, #6a1d12, #1e0804); }
+  .s-nodraw { background:#3a3128; }
+  .bang { background:#fff !important; color:#000; }
+
+  #panel { position:fixed; inset:0; background:rgba(20,10,4,.96); z-index:5; padding:28px 24px; overflow:auto; }
+  #panel[hidden] { display:none; }
+  #panel h2 { font-family:'Rye',Georgia,serif; font-weight:400; margin:0 0 14px; }
+  #panel label { display:block; margin:18px 0 6px; font-size:18px; }
+  #panel input[type=range] { width:100%; }
+  #meter { font-size:20px; margin-top:18px; padding:12px; border:2px dashed var(--gold); border-radius:10px; }
+  #sensor { margin-top:12px; opacity:.8; }
+</style>
+</head>
+<body>
+<div id="stage" class="s-join">
+  <button id="gear" aria-label="Settings">&#9881;</button>
+  <div id="emoji">&#129312;</div>
+  <h1 id="title" class="big">WILD WEST DUEL</h1>
+  <p id="sub"></p>
+  <p id="detail"></p>
+  <input id="nameInput" maxlength="14" placeholder="Your name, partner" autocomplete="off">
+  <a id="codeLink" href="#">Can't find your opponent? Enter their room code</a>
+  <input id="codeInput" maxlength="4" placeholder="ABCD" autocomplete="off" autocapitalize="characters" hidden>
+  <p id="privacy">Two phones on the same Wi-Fi = one duel. No laptop needed. We count visits and matches; your name and results are stored, your IP address is not.</p>
+  <button id="btn" class="btn">Saddle up</button>
+</div>
+
+<div id="panel" hidden>
+  <h2>Gun settings</h2>
+  <label><input type="checkbox" id="flickOn"> Flick the phone to fire (tapping the screen always works)</label>
+  <label>Flick strength needed: <b id="threshVal"></b></label>
+  <input type="range" id="thresh" min="10" max="40" step="1">
+  <div id="meter">Flick strength right now: <b id="mag">0</b><br>Strongest flick: <b id="peak">0</b></div>
+  <div id="sensor"></div>
+  <p style="opacity:.75">Tip: do a test flick and make sure the strongest flick goes above the strength needed. Set the bar a bit below your normal flick but above walking around.</p>
+  <button class="btn" id="closePanel">Done</button>
+</div>
+
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const stage = $('stage');
+
+  let S = null;            // latest game state from the server
+  let slot = null;         // 0 or 1 once we have a holster
+  let isFull = false;
+  let joined = false;
+  let connected = false;
+  let sock = null;
+  let drawnAt = 0;
+  let lastFire = 0;
+  let wakeLock = null;
+  let myName = '';
+  let myCode = '';
+  let roomCode = '';
+  let notice = '';
+  let paused = false;
+  try { $('nameInput').value = localStorage.getItem('duelname') || ''; } catch (e) { /* ignore */ }
+
+  const cfg = { flick: true, thresh: 22 };
+  try { Object.assign(cfg, JSON.parse(localStorage.getItem('duelcfg') || '{}')); } catch (e) { /* ignore */ }
+  const saveCfg = () => { try { localStorage.setItem('duelcfg', JSON.stringify(cfg)); } catch (e) { /* ignore */ } };
+
+  const vib = (p) => { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* ignore */ } };
+
+  // ------------------------------------------------------------ motion (flick to fire)
+  let mag = 0, peak = 0, motionSeen = false;
+  function onMotion(e) {
+    motionSeen = true;
+    const a = e.acceleration;
+    if (a && a.x != null && a.y != null && a.z != null) {
+      mag = Math.hypot(a.x, a.y, a.z);
+    } else {
+      const g = e.accelerationIncludingGravity;
+      if (!g || g.x == null) return;
+      mag = Math.abs(Math.hypot(g.x, g.y, g.z) - 9.81);
+    }
+    if (mag > peak) peak = mag;
+    if (cfg.flick && mag > cfg.thresh) tryFire();
+  }
+
+  // ------------------------------------------------------------ firing
+  function tryFire() {
+    if (!S || slot === null) return;
+    if (S.state !== 'steady' && S.state !== 'draw') return;
+    const now = performance.now();
+    if (now - lastFire < 1000) return;
+    lastFire = now;
+    const rt = S.state === 'draw' ? Math.round(now - drawnAt) : null;
+    sock.send({ t: 'fire', rt });
+    Sound.shot();
+    vib(70);
+    stage.classList.add('bang');
+    setTimeout(() => stage.classList.remove('bang'), 120);
+  }
+
+  stage.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('button')) return;
+    tryFire();
+  });
+
+  // ------------------------------------------------------------ rendering
+  function show(cls, emoji, title, sub, detail, btnText, act) {
+    const onJoin = cls === 's-join';
+    $('nameInput').hidden = !onJoin;
+    $('codeLink').hidden = !onJoin || !$('codeInput').hidden;
+    $('privacy').hidden = !onJoin;
+    if (!onJoin) $('codeInput').hidden = true;
+    stage.className = cls;
+    $('emoji').textContent = emoji;
+    $('title').textContent = title;
+    $('sub').textContent = sub || '';
+    $('detail').textContent = detail || '';
+    const b = $('btn');
+    b.hidden = !btnText;
+    b.textContent = btnText || '';
+    b.dataset.act = act || '';
+  }
+
+  function render() {
+    if (!joined) {
+      return show('s-join', '\u{1F920}', 'WILD WEST DUEL', notice || 'Your phone is your six-shooter.', 'Two gunslingers. One quick draw.', 'Saddle up', 'join');
+    }
+    if (paused) {
+      return show('s-conn', '\u{1F512}', 'Saloon closed', 'The game is paused right now. Try again later.', '', '', '');
+    }
+    if (!connected || !S) {
+      return show('s-conn', '\u{1F40E}', 'Riding in...', 'Connecting to the saloon.', '', '', '');
+    }
+    if (slot === null) {
+      return show('s-full', '\u{1F6AB}', 'Duel is full', 'Two gunslingers are already in this saloon.', '', 'Try again', 'retry');
+    }
+    const me = S.players[slot];
+    const opp = S.players[1 - slot];
+    if (!me) return show('s-conn', '\u{1F40E}', 'Riding in...', '', '', '', '');
+    const score = opp ? `${me.score} - ${opp.score}` : '';
+
+    if (S.state === 'lobby') {
+      let sub;
+      let btn = '';
+      let lobbyNote = '';
+      if (!opp) {
+        sub = `Waiting for your opponent. Ask them to open ${location.host} on this same Wi-Fi.`;
+        if (roomCode) lobbyNote = `If they can't find you, they can tap "Enter their room code" and type ${roomCode}`;
+      }
+      else if (me.ready) sub = `Waiting for ${opp.name} to get ready...`;
+      else { sub = `${opp.name} is here. Ready to duel?`; btn = "I'm ready"; }
+      return show('s-lobby', '\u{1F920}', me.name, sub, S.banner || lobbyNote || `First to ${S.winScore}`, btn, 'ready');
+    }
+    if (S.state === 'steady') {
+      return show('s-steady', '\u{1F910}', 'Steady...', "Hold still. Fire before the signal and you lose.", `Round ${S.round}   ${score}`, '', '');
+    }
+    if (S.state === 'draw') {
+      return show('s-draw', '', 'DRAW!', 'FLICK or TAP NOW!', '', '', '');
+    }
+    if (S.state === 'result') {
+      const R = S.result;
+      const mine = R.times[slot];
+      const theirs = R.times[1 - slot];
+      const fmt = (v) => (v == null ? 'no shot' : `${v} ms`);
+      if (R.winner === null) {
+        return show('s-nodraw', '\u{1F634}', 'NO DRAW', 'Nobody fired. Too yellow!', score, '', '');
+      }
+      const won = R.winner === slot;
+      let sub;
+      if (R.reason === 'foul') sub = R.foul === slot ? 'You fired too early!' : `${opp.name} fired too early!`;
+      else sub = `You: ${fmt(mine)}   Them: ${fmt(theirs)}`;
+      return show(won ? 's-win' : 's-lose', won ? '\u{1F920}' : '\u{1F480}', won ? 'YOU WIN' : 'YOU LOSE', sub, `Score  ${score}`, '', '');
+    }
+    if (S.state === 'over') {
+      const won = S.champion === slot;
+      const sub = won ? 'Quickest gun in the West.' : `${opp ? opp.name : 'Your opponent'} bested you.`;
+      return show(won ? 's-win' : 's-lose', won ? '\u{1F3C6}' : '\u{1FAA6}', won ? 'CHAMPION' : 'BESTED', sub, `Final  ${score}`,
+        me.ready ? '' : 'Rematch', 'ready');
+    }
+  }
+
+  // ------------------------------------------------------------ messages from server
+  function onMsg(m) {
+    if (m.t === 'paused') { paused = true; }
+    else if (m.t === 'badcode') {
+      sock.close();
+      joined = false;
+      notice = "That room code isn't active. Check the laptop screen.";
+    }
+    else if (m.t === 'hello') { slot = m.slot; isFull = false; paused = false; roomCode = m.code || ''; }
+    else if (m.t === 'full') { slot = null; isFull = true; }
+    else if (m.t === 'state') {
+      const old = S;
+      S = m;
+      const was = old ? old.state : null;
+      if (m.state === 'draw' && was !== 'draw') { drawnAt = performance.now(); Sound.bell(); vib([250]); } // the bell rings on every phone
+      if (m.state === 'result' && was !== 'result') {
+        const R = m.result;
+        if (slot !== null && R) {
+          if (R.times[slot] == null) Sound.shot(); // hear the other gun
+          if (R.winner === slot) vib([80, 40, 80]);
+          else if (R.winner !== null) vib([500]);
+        }
+      }
+      if (m.state === 'over' && was !== 'over') vib([100, 60, 100, 60, 300]);
+    }
+    render();
+  }
+
+  function onStatus(s) {
+    connected = s === 'open';
+    if (!connected) { S = null; slot = null; }
+    render();
+  }
+
+  // ------------------------------------------------------------ buttons
+  async function saddleUp() {
+    Sound.unlock();
+    try {
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+        await DeviceMotionEvent.requestPermission(); // iPhones only
+      }
+    } catch (e) { /* denied: tapping still works */ }
+    window.addEventListener('devicemotion', onMotion);
+    requestWake();
+    joined = true;
+    myName = $('nameInput').value.trim().slice(0, 14);
+    myCode = $('codeInput').hidden ? '' : $('codeInput').value.trim().toUpperCase().slice(0, 4);
+    notice = '';
+    try { localStorage.setItem('duelname', myName); } catch (e) { /* ignore */ }
+    if (sock) sock.close();
+    sock = openSocket('player', onMsg, onStatus, { name: myName, code: myCode });
+    render();
+  }
+
+  async function requestWake() {
+    try { if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { /* ignore */ }
+  }
+  document.addEventListener('visibilitychange', () => { if (joined && document.visibilityState === 'visible') requestWake(); });
+
+  $('btn').addEventListener('click', () => {
+    Sound.unlock();
+    const act = $('btn').dataset.act;
+    if (act === 'join') saddleUp();
+    else if (act === 'ready') sock.send({ t: 'ready' });
+    else if (act === 'retry') sock.send({ t: 'join', role: 'player', name: myName, code: myCode });
+  });
+
+  $('codeLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    $('codeInput').hidden = false;
+    $('codeLink').hidden = true;
+    $('codeInput').focus();
+  });
+
+  // ------------------------------------------------------------ settings panel
+  $('gear').addEventListener('click', () => { $('panel').hidden = false; peak = 0; });
+  $('closePanel').addEventListener('click', () => { $('panel').hidden = true; });
+  $('flickOn').checked = cfg.flick;
+  $('thresh').value = cfg.thresh;
+  $('threshVal').textContent = cfg.thresh;
+  $('flickOn').addEventListener('change', (e) => { cfg.flick = e.target.checked; saveCfg(); });
+  $('thresh').addEventListener('input', (e) => { cfg.thresh = Number(e.target.value); $('threshVal').textContent = cfg.thresh; saveCfg(); });
+  setInterval(() => {
+    if ($('panel').hidden) return;
+    $('mag').textContent = mag.toFixed(1);
+    $('peak').textContent = peak.toFixed(1);
+    mag *= 0.5;
+    $('sensor').textContent = !joined
+      ? 'Tap "Saddle up" first so the motion sensor can start.'
+      : motionSeen ? 'Motion sensor: working.' : 'Motion sensor: no data yet. Tapping the screen will still fire.';
+  }, 100);
+
+  render();
+  reportVisit('phone');
+})();
+</script>
+</body>
+</html>

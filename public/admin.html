@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Duel Control Room</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page:#f3f2ee; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#7a7973; --grid:#e6e5e0; --line:#d9d8d2;
+    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --accent:#2a78d6; --bad:#d03b3b; --good:#0ca30c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page:#121211; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#8f8e86; --grid:#2e2e2c; --line:#3a3a37;
+      --s1:#3987e5; --s2:#d95926; --s3:#199e70; --accent:#3987e5;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page:#121211; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#8f8e86; --grid:#2e2e2c; --line:#3a3a37;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --accent:#3987e5;
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; background:var(--page); color:var(--ink); font:15px/1.45 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; }
+  .wrap { max-width:1100px; margin:0 auto; padding:20px 16px 60px; }
+  header { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:18px; }
+  h1 { font-size:22px; margin:0; flex:1; }
+  h2 { font-size:15px; margin:0 0 4px; }
+  .sub { color:var(--ink2); font-size:13px; margin:0 0 10px; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .grid { display:grid; gap:12px; }
+  .tiles { grid-template-columns:repeat(auto-fit,minmax(135px,1fr)); margin-bottom:12px; }
+  .tile .k { color:var(--ink2); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  .tile .v { font-size:28px; font-weight:650; margin-top:4px; font-variant-numeric:tabular-nums; }
+  .tile .d { color:var(--muted); font-size:12px; min-height:1.2em; }
+  .two { grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); margin-bottom:12px; }
+  .pill { font-size:12px; padding:3px 10px; border-radius:99px; border:1px solid var(--line); color:var(--ink2); display:inline-flex; gap:6px; align-items:center; }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--good); }
+  .dot.off { background:var(--bad); }
+  button, .btn { font:inherit; border:1px solid var(--line); background:var(--surface); color:var(--ink); padding:7px 14px; border-radius:8px; cursor:pointer; text-decoration:none; display:inline-block; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button:disabled { opacity:.6; cursor:default; }
+  input[type=text], input[type=password], input[type=number], select { font:inherit; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:var(--page); color:var(--ink); max-width:100%; }
+  label { display:block; margin:10px 0 3px; color:var(--ink2); font-size:13px; }
+  svg { display:block; width:100%; height:auto; overflow:visible; }
+  svg text { fill:var(--muted); font-size:11px; font-family:inherit; }
+  svg .gl { stroke:var(--grid); stroke-width:1; }
+  svg .lab { fill:var(--ink); font-weight:600; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--grid); white-space:nowrap; }
+  th { color:var(--ink2); font-weight:600; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .scroll { overflow-x:auto; }
+  .hbar { display:grid; grid-template-columns:110px 1fr 46px; align-items:center; gap:8px; margin:6px 0; font-size:13px; }
+  .hbar .track { height:12px; }
+  .hbar .fill { height:12px; border-radius:0 4px 4px 0; background:var(--s1); min-width:2px; }
+  .hbar .n { text-align:right; color:var(--ink2); font-variant-numeric:tabular-nums; }
+  details summary { cursor:pointer; color:var(--ink2); font-size:13px; margin-top:8px; }
+  #tip { position:fixed; z-index:20; pointer-events:none; background:var(--ink); color:var(--surface); padding:5px 9px; border-radius:6px; font-size:12px; display:none; white-space:nowrap; }
+  #login { max-width:340px; margin:14vh auto 0; }
+  #login input { width:100%; margin:8px 0 12px; }
+  .err { color:var(--bad); font-size:13px; min-height:1.3em; }
+  .ok { color:var(--good); font-size:13px; }
+  [hidden] { display:none !important; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+  .check { display:flex; align-items:center; gap:8px; margin-top:12px; color:var(--ink); }
+  code { background:var(--page); padding:1px 5px; border-radius:4px; font-size:12px; }
+</style>
+</head>
+<body>
+<div id="tip"></div>
+
+<div id="login" class="card" hidden>
+  <h1 style="font-size:20px">Duel Control Room</h1>
+  <p class="sub">Owner login</p>
+  <form id="loginForm">
+    <input type="password" id="pw" placeholder="Password" autocomplete="current-password" autofocus>
+    <button class="primary" type="submit" style="width:100%">Log in</button>
+    <p class="err" id="loginErr"></p>
+  </form>
+</div>
+
+<div class="wrap" id="app" hidden>
+  <header>
+    <h1>Duel Control Room</h1>
+    <span class="pill"><span class="dot" id="liveDot"></span><span id="liveText">connecting</span></span>
+    <button id="logout">Log out</button>
+  </header>
+
+  <div class="grid tiles" id="tiles"></div>
+
+  <div class="grid two">
+    <div class="card"><h2>Visitors per day</h2><p class="sub">People who opened the game page (counted once per day each). Last 30 days.</p><div id="chVisitors"></div></div>
+    <div class="card"><h2>Matches started per day</h2><p class="sub">Duels that began, last 30 days.</p><div id="chMatches"></div></div>
+  </div>
+  <div class="grid two">
+    <div class="card"><h2>When people play</h2><p class="sub">Matches started by hour of the day, last 30 days (your local time).</p><div id="chHours"></div></div>
+    <div class="card">
+      <h2>Who is visiting</h2>
+      <p class="sub">All time. Country is only known when your host sends it (Cloudflare does).</p>
+      <div class="grid" style="grid-template-columns:1fr 1fr;gap:16px">
+        <div><div class="sub" style="margin-bottom:2px">Devices</div><div id="devices"></div></div>
+        <div><div class="sub" style="margin-bottom:2px">Countries</div><div id="countries"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h2>Live right now</h2>
+    <div class="scroll"><table><thead><tr><th>Room</th><th>Players</th><th>Score</th><th>Phase</th><th class="num">Laptop screens</th></tr></thead><tbody id="liveRows"></tbody></table></div>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <h2>Recent matches</h2>
+    <div class="scroll"><table><thead><tr><th>When</th><th>Players</th><th class="num">Score</th><th>Winner</th><th>Result</th><th class="num">Length</th></tr></thead><tbody id="recentRows"></tbody></table></div>
+    <details><summary>Daily numbers as a table</summary>
+      <div class="scroll"><table><thead><tr><th>Date</th><th class="num">Visits</th><th class="num">Unique visitors</th><th class="num">Players who joined</th><th class="num">Matches</th></tr></thead><tbody id="dayRows"></tbody></table></div>
+    </details>
+    <p style="margin:12px 0 0"><a class="btn" href="/admin/export/matches.csv">Download matches (CSV)</a> <a class="btn" href="/admin/export/events.json">Download all raw data (JSON)</a></p>
+  </div>
+
+  <div class="grid two">
+    <div class="card">
+      <h2>Game settings</h2>
+      <p class="sub">Changes apply to the next match that starts.</p>
+      <div class="row">
+        <div><label for="sWin">Rounds to win</label><select id="sWin"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
+        <div><label for="sMin">Shortest wait (sec)</label><input type="number" id="sMin" min="1" max="10" step="0.5" style="width:90px"></div>
+        <div><label for="sMax">Longest wait (sec)</label><input type="number" id="sMax" min="1" max="15" step="0.5" style="width:90px"></div>
+      </div>
+      <label for="sBanner">Message shown to players (optional, 140 letters)</label>
+      <input type="text" id="sBanner" maxlength="140" style="width:100%">
+      <label class="check"><input type="checkbox" id="sPaused"> Pause the game (nobody new can join)</label>
+      <p style="margin:14px 0 0"><button class="primary" id="saveSettings">Save settings</button> <span id="saveMsg" class="ok"></span></p>
+    </div>
+    <div class="card">
+      <h2>Network check</h2>
+      <p class="sub">Rooms are made from each visitor's Wi-Fi address. Before sharing the site, confirm the address below is really yours (compare with whatismyip.com). If it shows a private or host address, set <code>IP_HEADER</code> as the README explains.</p>
+      <div id="netcheck" class="sub">loading…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const tz = new Date().getTimezoneOffset();
+  let timer = null;
+
+  // ---------------------------------------------------------------- small helpers
+  const el = (tag, text, cls) => { const e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; };
+  const fmt = (n) => (n == null ? '–' : Number(n).toLocaleString());
+  const when = (ts) => new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const mmss = (s) => (s == null ? '–' : s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`);
+  const tip = $('tip');
+  function showTip(e, text) {
+    tip.textContent = text;
+    tip.style.display = 'block';
+    const w = tip.offsetWidth;
+    tip.style.left = Math.min(window.innerWidth - w - 8, Math.max(8, e.clientX + 12)) + 'px';
+    tip.style.top = Math.max(8, e.clientY - 34) + 'px';
+  }
+  const hideTip = () => { tip.style.display = 'none'; };
+
+  async function api(path, opts) {
+    const r = await fetch(path, Object.assign({ credentials: 'same-origin' }, opts));
+    if (r.status === 401 && !path.includes('login')) { showLogin(); throw new Error('login'); }
+    return r;
+  }
+
+  // ---------------------------------------------------------------- charts (plain SVG)
+  function niceMax(v) {
+    if (v <= 4) return 4;
+    const p = Math.pow(10, Math.floor(Math.log10(v)));
+    for (const m of [1, 2, 5, 10]) if (v <= m * p) return m * p;
+    return 10 * p;
+  }
+
+  // Column chart. data = [{ label, value, tip, tick }]
+  function columns(host, data, colorVar, unit) {
+    host.textContent = '';
+    const total = data.reduce((s, d) => s + d.value, 0);
+    if (!total) { host.appendChild(el('p', 'No data yet.', 'sub')); return; }
+    const W = 640, H = 190, L = 34, R = 8, T = 18, B = 26;
+    const max = niceMax(Math.max(...data.map((d) => d.value)));
+    const band = (W - L - R) / data.length;
+    const bw = Math.min(24, band - 2);
+    const y = (v) => T + (H - T - B) * (1 - v / max);
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', `${unit} chart, total ${total}`);
+    const add = (tag, attrs, text) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text != null) n.textContent = text; svg.appendChild(n); return n; };
+
+    for (const v of [0, max / 2, max]) { // recessive gridlines + y ticks
+      add('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), class: 'gl' });
+      add('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end' }, Number.isInteger(v) ? v : v.toFixed(1));
+    }
+    const peak = data.reduce((m, d) => (d.value > m.value ? d : m), data[0]);
+    data.forEach((d, i) => {
+      const x = L + i * band + (band - bw) / 2;
+      if (d.value > 0) { // 4px rounded top, square at the baseline
+        const top = y(d.value), base = y(0), r = Math.min(4, bw / 2, base - top);
+        add('path', { d: `M${x},${base} V${top + r} Q${x},${top} ${x + r},${top} H${x + bw - r} Q${x + bw},${top} ${x + bw},${top + r} V${base} Z`, fill: `var(${colorVar})` });
+      }
+      if (d.tick) add('text', { x: x + bw / 2, y: H - 8, 'text-anchor': 'middle' }, d.tick);
+      const hit = add('rect', { x: L + i * band, y: T, width: band, height: H - T - B, fill: 'transparent' });
+      hit.addEventListener('mousemove', (e) => showTip(e, d.tip));
+      hit.addEventListener('mouseleave', hideTip);
+    });
+    const pi = data.indexOf(peak); // label only the peak, not every bar
+    add('text', { x: L + pi * band + band / 2, y: y(peak.value) - 6, 'text-anchor': 'middle', class: 'lab' }, peak.value);
+    host.appendChild(svg);
+  }
+
+  function hbars(host, rows) {
+    host.textContent = '';
+    if (!rows.length) { host.appendChild(el('p', 'No data yet.', 'sub')); return; }
+    const max = Math.max(...rows.map((r) => r.n));
+    for (const r of rows) {
+      const line = el('div', null, 'hbar');
+      line.appendChild(el('span', r.k));
+      const track = el('div', null, 'track');
+      const fill = el('div', null, 'fill');
+      fill.style.width = Math.max(2, (r.n / max) * 100) + '%';
+      track.appendChild(fill);
+      line.appendChild(track);
+      line.appendChild(el('span', fmt(r.n), 'n'));
+      host.appendChild(line);
+    }
+  }
+
+  // ---------------------------------------------------------------- drawing the page
+  function tile(k, v, d) {
+    const t = el('div', null, 'card tile');
+    t.appendChild(el('div', k, 'k'));
+    t.appendChild(el('div', v, 'v'));
+    t.appendChild(el('div', d || '', 'd'));
+    return t;
+  }
+
+  function delta(now, before, word) {
+    if (before == null) return '';
+    const d = now - before;
+    return `${d > 0 ? '+' : ''}${d} vs ${word}`;
+  }
+
+  function draw(s) {
+    $('liveDot').classList.remove('off');
+    $('liveText').textContent = `${s.live.playersOnline} player${s.live.playersOnline === 1 ? '' : 's'} online`;
+
+    const tiles = $('tiles');
+    tiles.textContent = '';
+    tiles.appendChild(tile('Players online', fmt(s.live.playersOnline), `${s.live.activeMatches.length} duel${s.live.activeMatches.length === 1 ? '' : 's'} in progress`));
+    tiles.appendChild(tile('Visitors today', fmt(s.today.uniques), delta(s.today.uniques, s.yesterday && s.yesterday.uniques, 'yesterday')));
+    tiles.appendChild(tile('Matches today', fmt(s.today.matches), delta(s.today.matches, s.yesterday && s.yesterday.matches, 'yesterday')));
+    tiles.appendChild(tile('Matches finished', fmt(s.totals.completed), `${fmt(s.totals.abandoned)} left early`));
+    tiles.appendChild(tile('Total page visits', fmt(s.totals.visits), `${fmt(s.totals.joins)} joined a duel`));
+    tiles.appendChild(tile('Average match', mmss(s.avgDurationSec), 'finished matches'));
+    tiles.appendChild(tile('Fastest draw', s.fastestMs == null ? '–' : s.fastestMs + ' ms', s.avgWinMs == null ? '' : `winners average ${s.avgWinMs} ms`));
+
+    const dayTick = (d, i) => (i % 5 === 4 || i === 0 ? d.date.slice(5) : '');
+    columns($('chVisitors'), s.days.map((d, i) => ({ value: d.uniques, tick: dayTick(d, i), tip: `${d.date}: ${d.uniques} visitor${d.uniques === 1 ? '' : 's'} (${d.visits} page opens)` })), '--s1', 'Visitors per day');
+    columns($('chMatches'), s.days.map((d, i) => ({ value: d.matches, tick: dayTick(d, i), tip: `${d.date}: ${d.matches} match${d.matches === 1 ? '' : 'es'}` })), '--s2', 'Matches per day');
+    columns($('chHours'), s.hours.map((n, h) => ({ value: n, tick: h % 3 === 0 ? String(h) : '', tip: `${String(h).padStart(2, '0')}:00 – ${String(h).padStart(2, '0')}:59 : ${n} match${n === 1 ? '' : 'es'}` })), '--s3', 'Matches by hour');
+    hbars($('devices'), s.devices);
+    hbars($('countries'), s.countries);
+
+    const live = $('liveRows');
+    live.textContent = '';
+    if (!s.live.rooms) {
+      const tr = el('tr'); const td = el('td', 'Nobody is connected right now.'); td.colSpan = 5; tr.appendChild(td); live.appendChild(tr);
+    }
+    for (const r of s.live.activeMatches) addLiveRow(live, r);
+    // rooms with players waiting (not yet a match) are shown too
+    if (s.live.waiting) {
+      const tr = el('tr'); const td = el('td', `${s.live.waiting} room${s.live.waiting === 1 ? '' : 's'} waiting in the lobby`); td.colSpan = 5; tr.appendChild(td); live.appendChild(tr);
+    }
+
+    const rec = $('recentRows');
+    rec.textContent = '';
+    if (!s.recent.length) { const tr = el('tr'); const td = el('td', 'No matches yet.'); td.colSpan = 6; tr.appendChild(td); rec.appendChild(tr); }
+    for (const m of s.recent) {
+      const tr = el('tr');
+      tr.appendChild(el('td', when(m.ts)));
+      tr.appendChild(el('td', `${m.a} vs ${m.b}`));
+      tr.appendChild(el('td', `${m.sa} – ${m.sb}`, 'num'));
+      tr.appendChild(el('td', m.winner === 0 ? m.a : m.winner === 1 ? m.b : '–'));
+      tr.appendChild(el('td', m.reason === 'complete' ? 'finished' : 'left early'));
+      tr.appendChild(el('td', m.dur ? mmss(Math.round(m.dur / 1000)) : '–', 'num'));
+      rec.appendChild(tr);
+    }
+
+    const days = $('dayRows');
+    days.textContent = '';
+    for (const d of s.days.slice().reverse()) {
+      const tr = el('tr');
+      tr.appendChild(el('td', d.date));
+      for (const v of [d.visits, d.uniques, d.joins, d.matches]) tr.appendChild(el('td', fmt(v), 'num'));
+      days.appendChild(tr);
+    }
+  }
+
+  function addLiveRow(body, r) {
+    const tr = el('tr');
+    tr.appendChild(el('td', r.code));
+    tr.appendChild(el('td', r.players.map((p) => (p ? p.name : '(empty)')).join(' vs ')));
+    tr.appendChild(el('td', r.players.map((p) => (p ? p.score : 0)).join(' – ')));
+    tr.appendChild(el('td', r.state));
+    tr.appendChild(el('td', String(r.screens), 'num'));
+    body.appendChild(tr);
+  }
+
+  function fillSettings(s) {
+    $('sWin').value = s.winScore;
+    $('sMin').value = s.minWaitMs / 1000;
+    $('sMax').value = s.maxWaitMs / 1000;
+    $('sBanner').value = s.banner;
+    $('sPaused').checked = s.paused;
+  }
+
+  async function loadNetcheck() {
+    try {
+      const n = await (await api('/admin/api/netcheck')).json();
+      const box = $('netcheck');
+      box.textContent = '';
+      const lines = [
+        `Your address as the server sees it: ${n.detected}${n.isPrivate ? '  (private/local: normal at home, wrong online)' : ''}`,
+        `Taken from: ${n.source}   |   IP_HEADER setting: ${n.ipHeaderSetting}   |   proxy hops: ${n.hops}`,
+        'Headers seen: ' + (Object.keys(n.seen).length ? Object.entries(n.seen).map(([k, v]) => `${k}=${v}`).join('  ·  ') : 'none'),
+      ];
+      for (const l of lines) box.appendChild(el('div', l));
+    } catch (e) { /* login */ }
+  }
+
+  async function refresh(first) {
+    try {
+      const r = await api('/admin/api/stats?tz=' + tz);
+      const s = await r.json();
+      $('login').hidden = true;
+      $('app').hidden = false;
+      draw(s);
+      if (first) { fillSettings(s.settings); loadNetcheck(); }
+    } catch (e) {
+      if (e.message !== 'login') { $('liveDot').classList.add('off'); $('liveText').textContent = 'offline'; }
+    }
+  }
+
+  function showLogin() {
+    clearInterval(timer);
+    $('app').hidden = true;
+    $('login').hidden = false;
+    $('pw').focus();
+  }
+
+  function start() {
+    refresh(true);
+    clearInterval(timer);
+    timer = setInterval(() => { if (!document.hidden) refresh(false); }, 10000);
+  }
+
+  // ---------------------------------------------------------------- buttons
+  $('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('loginErr').textContent = '';
+    const r = await fetch('/admin/login', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: $('pw').value }) });
+    if (r.ok) { $('pw').value = ''; start(); }
+    else $('loginErr').textContent = (await r.json().catch(() => ({}))).error || 'Login failed';
+  });
+
+  $('logout').addEventListener('click', async () => {
+    await fetch('/admin/logout', { method: 'POST', credentials: 'same-origin' });
+    showLogin();
+  });
+
+  $('saveSettings').addEventListener('click', async () => {
+    const body = {
+      winScore: Number($('sWin').value),
+      minWaitMs: Math.round(Number($('sMin').value) * 1000),
+      maxWaitMs: Math.round(Number($('sMax').value) * 1000),
+      banner: $('sBanner').value,
+      paused: $('sPaused').checked,
+    };
+    const r = await api('/admin/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (r.ok) { fillSettings(await r.json()); $('saveMsg').textContent = 'Saved'; setTimeout(() => { $('saveMsg').textContent = ''; }, 2500); }
+  });
+
+  start();
+})();
+</script>
+</body>
+</html>

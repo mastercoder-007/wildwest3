@@ -1,0 +1,13 @@
+{
+  "name": "wildwest-duel",
+  "version": "2.0.0",
+  "description": "Wild West duel: phones are the guns, the laptop is the arena. One room per Wi-Fi network.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

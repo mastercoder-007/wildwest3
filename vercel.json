@@ -1,0 +1,11 @@
+{
+  "framework": null,
+  "installCommand": "echo skip",
+  "buildCommand": "echo skip",
+  "outputDirectory": "public",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/", "destination": "/phone.html" },
+    { "source": "/arena", "destination": "/arena.html" }
+  ]
+}

@@ -1,0 +1,14 @@
+# Render "Blueprint": lets you deploy everything (website + game server + admin) in one click.
+services:
+  - type: web
+    name: wildwest-duel
+    runtime: node
+    plan: free
+    buildCommand: echo "nothing to build"
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: ADMIN_PASSWORD
+        sync: false        # Render asks you to type it during setup
+      - key: DATA_DIR
+        value: /tmp/duel-data

@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wild West Duel - Arena</title>
+<link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#2b1a0f; --paper:#f3e2bd; --gold:#e8b13a; --rust:#b5471f; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; overflow:hidden; font-family:Georgia,'Times New Roman',serif; color:var(--paper); }
+  body { background:#2b1a0f url('/bg.webp') center/cover no-repeat; transition:background .1s; }
+  body::before { content:''; position:fixed; inset:0; z-index:-1; background:linear-gradient(rgba(20,10,4,.55), rgba(20,10,4,.1) 35%, rgba(20,10,4,.1) 60%, rgba(20,10,4,.6)); pointer-events:none; }
+  body.flash::before { opacity:0; }
+  body.flash { background:#e0301e; }
+  #sun { position:fixed; left:50%; top:30%; width:22vmin; height:22vmin; border-radius:50%; background:#ffd98a; transform:translate(-50%,-50%); box-shadow:0 0 12vmin 4vmin rgba(255,200,100,.5); }
+  .rye { font-family:'Rye',Georgia,serif; font-weight:400; }
+  header { position:fixed; top:0; left:0; right:0; text-align:center; padding:2vmin; }
+  header h1 { margin:0; font-size:5vmin; letter-spacing:.2vmin; text-shadow:0 .5vmin 0 #3b1d10; }
+  #round { font-size:2.6vmin; opacity:.9; margin-top:.5vmin; }
+
+  main { position:fixed; inset:0; display:grid; grid-template-columns:1fr 1.5fr 1fr; align-items:end; padding:12vmin 3vmin 4vmin; gap:2vmin; }
+  .gunner { text-align:center; transition:transform .4s, opacity .4s; }
+  .cowboy { font-size:22vmin; line-height:1; transition:transform .4s; filter:drop-shadow(0 1vmin 0 rgba(0,0,0,.35)); }
+  .gunner.right .cowboy { transform:scaleX(-1); }
+  .gunner.win .cowboy { transform:scale(1.2); }
+  .gunner.right.win .cowboy { transform:scaleX(-1.2) scaleY(1.2); }
+  .gunner.lose .cowboy { transform:rotate(80deg) translateY(4vmin); opacity:.6; }
+  .gunner.right.lose .cowboy { transform:scaleX(-1) rotate(80deg) translateY(4vmin); opacity:.6; }
+  .name { font-size:4vmin; margin-top:1vmin; }
+  .stars { font-size:5vmin; color:var(--gold); letter-spacing:.6vmin; min-height:1.2em; }
+  .status { font-size:2.8vmin; min-height:1.3em; opacity:.95; }
+  .status.ok { color:#b9e36b; }
+
+  #center { text-align:center; align-self:center; padding-bottom:12vmin; }
+  #headline { font-size:9vmin; line-height:1.05; text-shadow:0 .7vmin 0 #3b1d10; }
+  #subline { font-size:3.4vmin; margin-top:2vmin; text-shadow:0 .3vmin 0 #3b1d10; }
+  body.drawing #headline { font-size:20vmin; color:#fff; animation:shake .12s linear infinite; }
+  @keyframes shake { 25% { transform:translate(.8vmin,-.6vmin) rotate(-1deg); } 75% { transform:translate(-.8vmin,.6vmin) rotate(1deg); } }
+
+  #join { position:fixed; left:50%; bottom:2vmin; transform:translateX(-50%); background:rgba(20,10,4,.82); border:.3vmin solid var(--gold); border-radius:2vmin; padding:1.6vmin 3vmin; text-align:center; max-width:90vw; }
+  #join[hidden] { display:none; }
+  #join .lbl { font-size:2.2vmin; opacity:.85; }
+  #join .url { font-size:3.8vmin; color:var(--gold); word-break:break-all; }
+  #join .alt { font-size:2vmin; opacity:.7; margin-top:.6vmin; }
+
+  #unlock { position:fixed; inset:0; z-index:10; background:rgba(20,10,4,.88); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3vmin; cursor:pointer; text-align:center; }
+  #unlock[hidden] { display:none; }
+  #unlock .big { font-size:8vmin; }
+  #unlock .small { font-size:3vmin; opacity:.85; }
+</style>
+</head>
+<body>
+<header>
+  <h1 class="rye">WILD WEST DUEL</h1>
+  <div id="round"></div>
+</header>
+
+<main>
+  <section class="gunner" id="g0"><div class="cowboy">&#129312;</div><div class="name rye"></div><div class="stars"></div><div class="status"></div></section>
+  <section id="center"><div id="headline" class="rye"></div><div id="subline"></div></section>
+  <section class="gunner right" id="g1"><div class="cowboy">&#129312;</div><div class="name rye"></div><div class="stars"></div><div class="status"></div></section>
+</main>
+
+<div id="join" hidden>
+  <div class="lbl">Open this on each phone (same Wi-Fi):</div>
+  <div class="url" id="url"></div>
+  <div class="alt" id="alt"></div>
+  <div class="alt" id="codeline"></div>
+</div>
+
+<div id="unlock">
+  <div class="big rye">Click to open the saloon</div>
+  <div class="small">This turns the sound on.</div>
+</div>
+
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  let S = null;
+  let urls = [];
+  let joinShown = false;
+  let connected = false;
+
+  $('unlock').addEventListener('click', () => { Sound.unlock(); $('unlock').hidden = true; });
+
+  function ms(v) { return v == null ? 'no shot' : `${v} ms`; }
+
+  function setGunner(i, p, mode) {
+    const el = $('g' + i);
+    el.classList.remove('win', 'lose');
+    if (mode) el.classList.add(mode);
+    el.querySelector('.name').textContent = p ? p.name : 'Empty holster';
+    const win = S.winScore;
+    el.querySelector('.stars').textContent = p ? '★'.repeat(p.score) + '☆'.repeat(Math.max(0, win - p.score)) : '';
+  }
+
+  function setStatus(i, text, ok) {
+    const s = $('g' + i).querySelector('.status');
+    s.textContent = text || '';
+    s.classList.toggle('ok', !!ok);
+  }
+
+  function render() {
+    document.body.classList.toggle('drawing', !!S && S.state === 'draw');
+    if (!S) {
+      $('headline').textContent = connected ? '' : 'Connecting...';
+      $('subline').textContent = '';
+      return;
+    }
+    const [a, b] = S.players;
+    const R = S.result;
+    let modeA = null, modeB = null;
+    if (S.state === 'result' && R && R.winner !== null) {
+      modeA = R.winner === 0 ? 'win' : 'lose';
+      modeB = R.winner === 1 ? 'win' : 'lose';
+    }
+    if (S.state === 'over') {
+      modeA = S.champion === 0 ? 'win' : 'lose';
+      modeB = S.champion === 1 ? 'win' : 'lose';
+    }
+    setGunner(0, a, modeA);
+    setGunner(1, b, modeB);
+    setStatus(0, '');
+    setStatus(1, '');
+    $('round').textContent = S.round ? `Round ${S.round}   -   first to ${S.winScore} wins` : '';
+    $('join').hidden = S.state !== 'lobby' || !joinShown;
+
+    let head = '', sub = '';
+    if (S.state === 'lobby') {
+      const n = (a ? 1 : 0) + (b ? 1 : 0);
+      head = n < 2 ? 'Waiting for gunslingers' : 'Both guns are here';
+      sub = n < 2 ? `${n} of 2 phones connected` : 'Each player tap "I\'m ready" on your phone.';
+      [a, b].forEach((p, i) => setStatus(i, p ? (p.ready ? 'READY' : 'not ready yet') : 'waiting...', p && p.ready));
+    } else if (S.state === 'steady') {
+      head = 'Steady...';
+      sub = 'Eyes on your opponent. Do NOT fire yet.';
+    } else if (S.state === 'draw') {
+      head = 'DRAW!';
+      sub = '';
+    } else if (S.state === 'result') {
+      if (R.winner === null) {
+        head = 'Nobody drew!';
+        sub = 'Too yellow. Round replays.';
+      } else {
+        const w = S.players[R.winner];
+        if (R.reason === 'foul') {
+          head = `${S.players[R.foul].name} jumped the gun!`;
+          sub = `${w.name} takes the round.`;
+          setStatus(R.foul, 'FIRED TOO EARLY', false);
+        } else {
+          head = `${w.name} shoots first!`;
+          sub = `${a.name} ${ms(R.times[0])}    ${b.name} ${ms(R.times[1])}`;
+        }
+      }
+    } else if (S.state === 'over') {
+      const w = S.players[S.champion];
+      head = `${w.name} is the quickest gun in the West!`;
+      sub = 'Tap "Rematch" on both phones to go again.';
+      [a, b].forEach((p, i) => p && setStatus(i, p.ready ? 'wants a rematch' : '', p.ready));
+    }
+    $('headline').textContent = head;
+    $('subline').textContent = sub;
+  }
+
+  function onMsg(m) {
+    if (m.t === 'info') {
+      urls = m.urls || [];
+      joinShown = true;
+      if (urls.length) { // running at home: the laptop's Wi-Fi address
+        $('url').textContent = urls[0];
+        $('alt').textContent = urls.length > 1 ? `If that does not load, try: ${urls.slice(1).join('   ')}` : '';
+        $('codeline').textContent = '';
+      } else { // running online: phones just open this website
+        $('url').textContent = location.origin.replace(/^https?:\/\//, '');
+        $('alt').textContent = '';
+        $('codeline').textContent = m.code ? `Phone can't find this laptop? On the phone tap "Enter its room code" and type ${m.code}` : '';
+      }
+    } else if (m.t === 'state') {
+      const was = S ? S.state : null;
+      S = m;
+      if (m.state === 'draw' && was !== 'draw') {
+        Sound.bell();
+        document.body.classList.add('flash');
+        setTimeout(() => document.body.classList.remove('flash'), 140);
+      }
+      if (m.state === 'result' && was !== 'result') {
+        const R = m.result;
+        if (R.reason === 'foul' || R.winner === null) Sound.buzz();
+        if (R.winner !== null) Sound.shot();
+        if (R.reason === 'faster' && R.times[0] != null && R.times[1] != null) setTimeout(() => Sound.shot(), 120);
+      }
+    }
+    render();
+  }
+
+  openSocket('arena', onMsg, (s) => {
+    connected = s === 'open';
+    if (!connected) S = null;
+    render();
+  });
+  render();
+  reportVisit('arena');
+})();
+</script>
+</body>
+</html>
